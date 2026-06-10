@@ -266,13 +266,27 @@ POST   /api/games/:id/transition               Advance game state (lobby→group
 ### Player (Anonymous)
 ```
 POST   /api/games/:id/join                     Join game (body: { displayName })
-GET    /api/games/:id/players                  Get all players (with group assignments)
-GET    /api/games/:id/me                       Get current player's info (by playerId header/param)
 ```
+
+### Unified Game State (Player Polling)
+```
+GET    /api/games/:id/state?playerId=X         Single polling endpoint for player state machine
+```
+
+Returns phase-appropriate data tailored to the requesting player:
+
+| Game Status | Response includes |
+|-------------|------------------|
+| `lobby` | game status, player count, player names |
+| `grouping` | game status, player's group letter, group member names |
+| `statements` | game status, group's current statements (own group only) |
+| `voting` | game status, current group's statements, whether player has voted, vote count |
+| `results` | game status, full scored leaderboard |
+
+This reduces polling from 3-4 parallel requests to a single request per interval.
 
 ### Statements (Players in Group)
 ```
-GET    /api/games/:id/groups/:letter/statements     Get statements for a group
 PUT    /api/games/:id/groups/:letter/statements/:n  Create/update a statement (last-writer-wins)
 ```
 
@@ -437,13 +451,15 @@ function PlayerPage() {
 
 **MVP: Polling with React Query**
 
-| Data | Poll Interval | Trigger |
-|------|--------------|---------|
-| Game status | 3 seconds | Detect state transitions |
-| Player list (lobby) | 5 seconds | New players joining |
-| Statement status | 5 seconds | Groups entering statements |
-| Vote count | 3 seconds | During active voting |
-| Scores | N/A | Fetched once on results transition |
+The player state machine polls a single endpoint: `GET /api/games/:id/state?playerId=X`
+
+| Game Phase | Poll Interval | Why |
+|------------|--------------|-----|
+| Lobby | 5 seconds | Detect transition to grouping |
+| Grouping | 5 seconds | Detect transition to statements |
+| Statements | 5 seconds | See teammates' statement edits + detect transition to voting |
+| Voting | 3 seconds | See current group to vote on + detect voting close |
+| Results | N/A | Fetched once on transition, no further polling |
 
 **Design for SignalR Upgrade:**
 - All polling is behind the `useGameState()` hook used by the player state machine
