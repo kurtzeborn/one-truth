@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { gamesTable, playersTable } from '../shared/storage.js';
+import { gamesTable, playersTable, statementsTable } from '../shared/storage.js';
 import { requireGameKeeper, AuthError } from '../shared/auth.js';
-import { GameEntity, PlayerEntity } from '../shared/types.js';
+import { GameEntity, PlayerEntity, StatementEntity } from '../shared/types.js';
 import { shuffle, assignToGroups, MAX_GROUPS } from '../shared/groups.js';
 
 // POST /api/games/:id/assign-groups
@@ -152,7 +152,32 @@ app.http('getGroups', {
         groups[letter].push({ id: p.rowKey, displayName: p.displayName });
       }
 
-      return { status: 200, jsonBody: groups };
+      // Count statements per group
+      const statementCounts: Record<string, number> = {};
+      const hasLie: Record<string, boolean> = {};
+      const stmtEntities = statementsTable.listEntities<StatementEntity>({
+        queryOptions: { filter: `PartitionKey eq '${gameId}'` },
+      });
+      for await (const s of stmtEntities) {
+        statementCounts[s.groupLetter] = (statementCounts[s.groupLetter] || 0) + 1;
+        if (s.isLie) hasLie[s.groupLetter] = true;
+      }
+
+      // Build response with statement progress
+      const result: Record<string, {
+        players: Array<{ id: string; displayName: string }>;
+        statementCount: number;
+        hasLie: boolean;
+      }> = {};
+      for (const [letter, players] of Object.entries(groups)) {
+        result[letter] = {
+          players,
+          statementCount: statementCounts[letter] || 0,
+          hasLie: hasLie[letter] || false,
+        };
+      }
+
+      return { status: 200, jsonBody: result };
     } catch (error) {
       if (error instanceof AuthError) {
         return { status: error.statusCode, jsonBody: { error: error.message } };

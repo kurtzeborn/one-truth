@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { fetchGameState } from '../api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchGameState, updateStatement } from '../api';
 import type { PlayerSession, GameState } from '../types';
 
 function LobbySection({ state }: { state: GameState }) {
@@ -31,12 +31,135 @@ function GroupingSection({ state }: { state: GameState }) {
   );
 }
 
-function StatementsSection({ state }: { state: GameState }) {
+function StatementsSection({ state, session }: { state: GameState; session: PlayerSession }) {
+  const queryClient = useQueryClient();
+  const groupLetter = state.player?.groupLetter || '';
+  const existingStatements = state.statements || [];
+
+  // Derive server state as a stable key for detecting changes
+  const serverKey = JSON.stringify(existingStatements);
+
+  // Track local edits; reset when server data changes
+  const [texts, setTexts] = useState<[string, string, string]>(['', '', '']);
+  const [lieIndex, setLieIndex] = useState<number | null>(null);
+  const [saving, setSaving] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [lastServerKey, setLastServerKey] = useState('');
+
+  // Sync from server when data changes (without useEffect + setState)
+  if (serverKey !== lastServerKey) {
+    setLastServerKey(serverKey);
+    if (existingStatements.length > 0) {
+      const newTexts: [string, string, string] = ['', '', ''];
+      let newLie: number | null = null;
+      for (const s of existingStatements) {
+        newTexts[s.statementNumber - 1] = s.text;
+        if (s.isLie) newLie = s.statementNumber - 1;
+      }
+      setTexts(newTexts);
+      setLieIndex(newLie);
+    }
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ index, text, isLie }: { index: number; text: string; isLie: boolean }) => {
+      setSaving(index);
+      return updateStatement(
+        session.gameId,
+        groupLetter,
+        index + 1,
+        text,
+        isLie,
+        session.playerId,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gameState'] });
+      setError('');
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Failed to save');
+    },
+    onSettled: () => {
+      setSaving(null);
+    },
+  });
+
+  const handleSave = (index: number) => {
+    const text = texts[index].trim();
+    if (!text) return;
+    saveMutation.mutate({ index, text, isLie: lieIndex === index });
+  };
+
+  const handleLieChange = (index: number) => {
+    setLieIndex(index);
+    // Auto-save if the statement has text
+    const text = texts[index].trim();
+    if (text) {
+      saveMutation.mutate({ index, text, isLie: true });
+    }
+  };
+
+  const statementsEntered = texts.filter(t => t.trim()).length;
+
   return (
-    <div className="text-center">
-      <h2 className="text-2xl font-bold mb-4">Group {state.player?.groupLetter} Statements</h2>
-      <p className="text-gray-400 mb-4">Enter 2 truths and 1 lie about your group</p>
-      <p className="text-gray-500">Statement entry coming in Phase 3</p>
+    <div className="w-full max-w-md space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold mb-1">Group {groupLetter}</h2>
+        <p className="text-gray-400 text-sm">Enter 2 truths and 1 lie</p>
+      </div>
+
+      {state.groupMembers && (
+        <p className="text-gray-500 text-xs text-center">
+          Members: {state.groupMembers.map(m => m.displayName).join(', ')}
+        </p>
+      )}
+
+      {[0, 1, 2].map(i => (
+        <div key={i} className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-sm w-24">Statement {i + 1}</span>
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="radio"
+                name="lie"
+                checked={lieIndex === i}
+                onChange={() => handleLieChange(i)}
+                className="accent-red-500"
+              />
+              <span className={`text-xs ${lieIndex === i ? 'text-red-400' : 'text-gray-500'}`}>
+                The lie
+              </span>
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <textarea
+              value={texts[i]}
+              onChange={(e) => {
+                const newTexts = [...texts] as [string, string, string];
+                newTexts[i] = e.target.value;
+                setTexts(newTexts);
+              }}
+              onBlur={() => handleSave(i)}
+              placeholder={`Statement ${i + 1}...`}
+              maxLength={200}
+              rows={2}
+              className="flex-1 p-2 rounded bg-gray-800 border border-gray-700 text-sm resize-none"
+            />
+            {saving === i && (
+              <span className="text-blue-400 text-xs self-center">Saving...</span>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+
+      <div className="text-center">
+        <p className={`text-sm ${statementsEntered === 3 && lieIndex !== null ? 'text-green-400' : 'text-gray-500'}`}>
+          {statementsEntered}/3 statements {lieIndex !== null ? '• lie marked ✓' : '• no lie marked'}
+        </p>
+      </div>
     </div>
   );
 }
@@ -131,7 +254,7 @@ export function PlayerPage() {
           switch (state.game.status) {
             case 'lobby': return <LobbySection state={state} />;
             case 'grouping': return <GroupingSection state={state} />;
-            case 'statements': return <StatementsSection state={state} />;
+            case 'statements': return <StatementsSection state={state} session={session} />;
             case 'voting': return <VotingSection state={state} />;
             case 'results': return <ResultsSection state={state} />;
           }

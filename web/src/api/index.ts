@@ -63,8 +63,14 @@ export async function fetchGame(gameId: string): Promise<Game> {
   return apiFetch<Game>(`/games/${gameId}`);
 }
 
-export async function fetchGroups(gameId: string): Promise<Record<string, Array<{ id: string; displayName: string }>>> {
-  return apiFetch<Record<string, Array<{ id: string; displayName: string }>>>(`/games/${gameId}/groups`);
+export interface GroupInfo {
+  players: Array<{ id: string; displayName: string }>;
+  statementCount: number;
+  hasLie: boolean;
+}
+
+export async function fetchGroups(gameId: string): Promise<Record<string, GroupInfo>> {
+  return apiFetch<Record<string, GroupInfo>>(`/games/${gameId}/groups`);
 }
 
 export async function assignGroups(gameId: string, groupSize: number): Promise<Game> {

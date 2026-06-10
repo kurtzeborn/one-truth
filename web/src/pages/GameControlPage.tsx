@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
 import { fetchAuthStatus, fetchGame, fetchGameState, fetchGroups, assignGroups, transitionGame, deleteGame } from '../api';
+import type { GroupInfo } from '../api';
 
 function LobbyView({ gameId, playerCount, players }: {
   gameId: string;
@@ -85,7 +86,7 @@ function LobbyView({ gameId, playerCount, players }: {
 
 function GroupingView({ gameId, groups }: {
   gameId: string;
-  groups: Record<string, Array<{ id: string; displayName: string }>>;
+  groups: Record<string, GroupInfo>;
 }) {
   const queryClient = useQueryClient();
 
@@ -106,10 +107,10 @@ function GroupingView({ gameId, groups }: {
           <div key={letter} className="bg-gray-800 rounded-lg p-4">
             <h3 className="text-xl font-bold text-blue-400 mb-2">
               Group {letter}
-              <span className="text-gray-500 text-sm font-normal ml-2">({groups[letter].length})</span>
+              <span className="text-gray-500 text-sm font-normal ml-2">({groups[letter].players.length})</span>
             </h3>
             <ul className="space-y-1">
-              {groups[letter].map(p => (
+              {groups[letter].players.map(p => (
                 <li key={p.id} className="text-gray-300 text-sm">{p.displayName}</li>
               ))}
             </ul>
@@ -123,6 +124,78 @@ function GroupingView({ gameId, groups }: {
           className="px-8 py-3 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-semibold"
         >
           {transitionMutation.isPending ? 'Starting...' : 'Begin Statements →'}
+        </button>
+      </div>
+      {transitionMutation.isError && (
+        <p className="text-red-400 text-center">{transitionMutation.error.message}</p>
+      )}
+    </div>
+  );
+}
+
+function StatementsView({ gameId, groups }: {
+  gameId: string;
+  groups: Record<string, GroupInfo>;
+}) {
+  const queryClient = useQueryClient();
+
+  const transitionMutation = useMutation({
+    mutationFn: () => transitionGame(gameId, 'voting'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+    },
+  });
+
+  const sortedLetters = Object.keys(groups).sort();
+  const allComplete = sortedLetters.every(l => groups[l].statementCount === 3 && groups[l].hasLie);
+  const totalGroups = sortedLetters.length;
+  const completedGroups = sortedLetters.filter(l => groups[l].statementCount === 3 && groups[l].hasLie).length;
+
+  return (
+    <div className="w-full max-w-4xl space-y-6">
+      <h2 className="text-2xl font-bold text-center">Statement Progress</h2>
+      <p className="text-gray-400 text-center">{completedGroups}/{totalGroups} groups complete</p>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {sortedLetters.map(letter => {
+          const g = groups[letter];
+          const complete = g.statementCount === 3 && g.hasLie;
+          return (
+            <div key={letter} className={`rounded-lg p-4 ${complete ? 'bg-green-900/40 border border-green-700' : 'bg-gray-800'}`}>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xl font-bold text-blue-400">Group {letter}</h3>
+                <span className={`text-sm font-mono ${complete ? 'text-green-400' : 'text-gray-400'}`}>
+                  {g.statementCount}/3 {complete ? '✓' : ''}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {[1, 2, 3].map(n => (
+                  <div
+                    key={n}
+                    className={`h-2 flex-1 rounded ${n <= g.statementCount ? (complete ? 'bg-green-500' : 'bg-blue-500') : 'bg-gray-700'}`}
+                  />
+                ))}
+              </div>
+              {g.statementCount > 0 && !g.hasLie && (
+                <p className="text-yellow-400 text-xs mt-2">No lie marked</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col items-center gap-2 pt-4">
+        {!allComplete && (
+          <p className="text-yellow-400 text-sm">Not all groups have completed their statements</p>
+        )}
+        <button
+          onClick={() => transitionMutation.mutate()}
+          disabled={transitionMutation.isPending}
+          className={`px-8 py-3 rounded font-semibold disabled:opacity-50 ${
+            allComplete ? 'bg-blue-600 hover:bg-blue-700' : 'bg-yellow-600 hover:bg-yellow-700'
+          }`}
+        >
+          {transitionMutation.isPending ? 'Starting...' : allComplete ? 'Begin Voting →' : 'Begin Voting Anyway →'}
         </button>
       </div>
       {transitionMutation.isError && (
@@ -161,11 +234,12 @@ export function GameControlPage() {
     refetchInterval: 3000,
   });
 
-  // Fetch groups when in grouping phase
+  // Fetch groups when in grouping or statements phase
   const { data: groups } = useQuery({
     queryKey: ['groups', gameId],
     queryFn: () => fetchGroups(gameId!),
     enabled: !!gameId && (game?.status === 'grouping' || game?.status === 'statements'),
+    refetchInterval: game?.status === 'statements' ? 5000 : false,
   });
 
   const deleteMutation = useMutation({
@@ -237,11 +311,8 @@ export function GameControlPage() {
           {game.status === 'grouping' && groups && (
             <GroupingView gameId={game.id} groups={groups} />
           )}
-          {game.status === 'statements' && (
-            <div className="text-center">
-              <h2 className="text-2xl font-bold mb-4">Statements Phase</h2>
-              <p className="text-gray-400">Statement status board coming in Phase 3</p>
-            </div>
+          {game.status === 'statements' && groups && (
+            <StatementsView gameId={game.id} groups={groups} />
           )}
           {game.status === 'voting' && (
             <div className="text-center">
