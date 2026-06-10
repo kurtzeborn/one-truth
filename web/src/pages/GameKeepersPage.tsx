@@ -6,7 +6,7 @@ export function GameKeepersPage() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
 
-  const { data: auth } = useQuery({
+  const { data: auth, isLoading: authLoading } = useQuery({
     queryKey: ['auth'],
     queryFn: fetchAuthStatus,
   });
@@ -31,6 +31,14 @@ export function GameKeepersPage() {
       queryClient.invalidateQueries({ queryKey: ['gamekeepers'] });
     },
   });
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    );
+  }
 
   if (!auth?.isGameKeeper) {
     return (
