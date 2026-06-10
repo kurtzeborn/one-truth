@@ -411,7 +411,7 @@ function VotingView({ gameId, game, groups }: {
   );
 }
 
-function ResultsView({ gameId, onDelete }: { gameId: string; onDelete: () => void }) {
+function ResultsView({ gameId }: { gameId: string }) {
   const { data: state } = useQuery({
     queryKey: ['resultsState', gameId],
     queryFn: () => fetchGameState(gameId, '__gk__'),
@@ -425,14 +425,6 @@ function ResultsView({ gameId, onDelete }: { gameId: string; onDelete: () => voi
       ) : (
         <p className="text-gray-400 text-center">Loading scores...</p>
       )}
-      <div className="mt-8 text-center">
-        <button
-          onClick={() => { if (confirm('Delete this game? This cannot be undone.')) onDelete(); }}
-          className="text-red-400 hover:text-red-300 text-sm"
-        >
-          Delete Game
-        </button>
-      </div>
     </div>
   );
 }
@@ -550,7 +542,7 @@ export function GameControlPage() {
             <VotingView gameId={game.id} game={game} groups={groups} />
           )}
           {game.status === 'results' && (
-            <ResultsView gameId={game.id} onDelete={() => deleteMutation.mutate()} />
+            <ResultsView gameId={game.id} />
           )}
         </div>
       </div>
