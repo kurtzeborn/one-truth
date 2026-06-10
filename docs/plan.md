@@ -371,16 +371,58 @@ Group D: █░░░  (1/3)
 
 ---
 
-## 11. Frontend Pages
+## 11. Frontend Architecture
+
+### Routing
+
+React Router is used only for top-level navigation between the player and game keeper experiences. The player view is a **single-page state machine** — no client-side routing within the game.
 
 | Route | Page | Access |
 |-------|------|--------|
 | `/` | Landing page — Join game (enter code) or Sign in as Game Keeper | Public |
 | `/?game=XXXX` | Auto-fill game code from QR, prompt for name | Public |
-| `/play` | Player game view (group assignment, statements, voting, results) | Player (has session) |
+| `/play` | Player single-page game view (state machine) | Player (has session) |
 | `/manage` | Game Keeper dashboard — create game, manage active games | Game Keeper |
 | `/manage/game/:id` | Game Keeper game control — QR code, status board, voting controls | Game Keeper |
 | `/manage/keepers` | Manage game keeper allowlist | Game Keeper |
+
+### Player View: Single-Page State Machine
+
+The player view (`/play`) is a single component that polls `game.status` and conditionally renders the appropriate section. No route changes occur during gameplay — the game state drives the UI.
+
+```typescript
+// Conceptual structure
+function PlayerPage() {
+  const { game, player } = useGameState();  // polls game status
+
+  switch (game.status) {
+    case 'lobby':      return <LobbySection player={player} />;
+    case 'grouping':   return <GroupingSection player={player} />;
+    case 'statements': return <StatementsSection player={player} game={game} />;
+    case 'voting':     return <VotingSection player={player} game={game} />;
+    case 'results':    return <ResultsSection game={game} />;
+  }
+}
+```
+
+**Why single-page for players:**
+- Players never navigate freely — game state drives what they see
+- No back-button confusion or URL bar flashing
+- Feels more app-like on mobile
+- Simpler code — no route guards or redirect logic
+- Natural fit: the 5 game states map directly to 5 conditional sections
+
+**Why routing for game keeper:**
+- Game keepers navigate independently (dashboard → game → keepers)
+- They may manage multiple games or switch between views
+- Deep-linking to a specific game control page is useful
+
+### Player Sections (designed for phone screens)
+- **LobbySection**: "You're in! Waiting for groups…" + player count
+- **GroupingSection**: Large group letter + group member names
+- **StatementsSection**: Form to enter/view 3 statements + mark the lie
+- **VotingSection**: 3 statement buttons to vote (or "Your group is up!" if own group)
+- **ResultsSection**: Scrolling leaderboard matching the projected view
 
 ### Game Keeper Projected Views (designed for large screens)
 - **Lobby**: Large QR code + player count + player names scrolling
@@ -388,13 +430,6 @@ Group D: █░░░  (1/3)
 - **Statements**: Status grid showing each group's progress
 - **Voting**: 3 statements displayed large, vote count indicator
 - **Results**: Animated leaderboard reveal
-
-### Player Views (designed for phone screens)
-- **Lobby**: "You're in! Waiting for groups…" + player count
-- **Grouping**: Large group letter + group member names
-- **Statements**: Form to enter/view 3 statements + mark the lie
-- **Voting**: 3 statement buttons to vote (or "Your group is up!" if own group)
-- **Results**: Scrolling leaderboard matching the projected view
 
 ---
 
@@ -411,9 +446,9 @@ Group D: █░░░  (1/3)
 | Scores | N/A | Fetched once on results transition |
 
 **Design for SignalR Upgrade:**
-- Abstract polling behind a `useGameUpdates()` hook
-- Hook returns the same data shape whether backed by polling or SignalR
-- SignalR upgrade = swap hook implementation, no component changes
+- All polling is behind the `useGameState()` hook used by the player state machine
+- Hook returns `{ game, player, group, statements, votes }` — same shape regardless of transport
+- SignalR upgrade = swap hook internals from polling to push, no component changes
 
 ---
 
