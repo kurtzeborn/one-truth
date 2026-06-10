@@ -27,15 +27,19 @@ app.http('getGameState', {
         throw error;
       }
 
-      // Get requesting player
-      let player: PlayerEntity;
+      // Get requesting player (optional during lobby for GK view)
+      let player: PlayerEntity | null = null;
       try {
         player = await playersTable.getEntity<PlayerEntity>(gameId, playerId);
       } catch (error: any) {
         if (error.statusCode === 404) {
-          return { status: 404, jsonBody: { error: 'Player not found' } };
+          // Allow lobby phase without a valid player (GK viewing)
+          if (game.status !== 'lobby') {
+            return { status: 404, jsonBody: { error: 'Player not found' } };
+          }
+        } else {
+          throw error;
         }
-        throw error;
       }
 
       const gameData = {
@@ -46,14 +50,14 @@ app.http('getGameState', {
         votedGroups: JSON.parse(game.votedGroups || '[]'),
       };
 
-      const playerData = {
+      const playerData = player ? {
         id: player.rowKey,
         displayName: player.displayName,
         groupLetter: player.groupLetter,
         score: player.score,
-      };
+      } : undefined;
 
-      const result: Record<string, unknown> = { game: gameData, player: playerData };
+      const result: Record<string, unknown> = { game: gameData, player: playerData || null };
 
       // Phase-specific data
       switch (game.status) {
@@ -72,7 +76,7 @@ app.http('getGameState', {
         case 'grouping':
         case 'statements': {
           // Get group members
-          if (player.groupLetter) {
+          if (player?.groupLetter) {
             const members: Array<{ id: string; displayName: string }> = [];
             const entities = playersTable.listEntities<PlayerEntity>({
               queryOptions: { filter: `PartitionKey eq '${gameId}'` },
@@ -86,7 +90,7 @@ app.http('getGameState', {
           }
 
           // Get statements for own group during statements phase
-          if (game.status === 'statements' && player.groupLetter) {
+          if (game.status === 'statements' && player?.groupLetter) {
             const statements: Array<{ statementNumber: number; text: string; isLie: boolean }> = [];
             for (let n = 1; n <= 3; n++) {
               try {

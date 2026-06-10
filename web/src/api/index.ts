@@ -63,6 +63,10 @@ export async function fetchGame(gameId: string): Promise<Game> {
   return apiFetch<Game>(`/games/${gameId}`);
 }
 
+export async function fetchGroups(gameId: string): Promise<Record<string, Array<{ id: string; displayName: string }>>> {
+  return apiFetch<Record<string, Array<{ id: string; displayName: string }>>>(`/games/${gameId}/groups`);
+}
+
 export async function assignGroups(gameId: string, groupSize: number): Promise<Game> {
   return apiFetch<Game>(`/games/${gameId}/assign-groups`, {
     method: 'POST',
