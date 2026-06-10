@@ -5,6 +5,7 @@ interface ScoreEntry {
   id: string;
   displayName: string;
   score: number;
+  speedBonuses?: number;
 }
 
 // Scores arrive sorted ascending (lowest first) for bottom-up reveal.
@@ -107,6 +108,11 @@ export function Leaderboard({ scores, compact }: { scores: ScoreEntry[]; compact
               `}>
                 {entry.displayName}
               </span>
+              {entry.speedBonuses && entry.speedBonuses > 0 && (
+                <span className="text-yellow-400 text-xs ml-1" title={`${entry.speedBonuses} speed bonus${entry.speedBonuses > 1 ? 'es' : ''}`}>
+                  ⚡{entry.speedBonuses > 1 ? `×${entry.speedBonuses}` : ''}
+                </span>
+              )}
             </div>
             <span className={`
               ${isChampion ? 'text-yellow-300 ' + textChampion : ''}

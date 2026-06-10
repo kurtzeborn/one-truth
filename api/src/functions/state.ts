@@ -123,6 +123,7 @@ app.http('getGameState', {
                     chosenStatement: vote.chosenStatement,
                     isCorrect: !!vote.isCorrect,
                     pointsAwarded: vote.pointsAwarded || 0,
+                    speedBonus: vote.pointsAwarded === 5,
                   };
                 }
               } catch (error: any) {
@@ -139,12 +140,12 @@ app.http('getGameState', {
         }
 
         case 'results': {
-          const scores: Array<{ id: string; displayName: string; score: number }> = [];
+          const scores: Array<{ id: string; displayName: string; score: number; speedBonuses: number }> = [];
           const entities = playersTable.listEntities<PlayerEntity>({
             queryOptions: { filter: `PartitionKey eq '${gameId}'` },
           });
           for await (const p of entities) {
-            scores.push({ id: p.rowKey, displayName: p.displayName, score: p.score });
+            scores.push({ id: p.rowKey, displayName: p.displayName, score: p.score, speedBonuses: p.speedBonuses || 0 });
           }
           scores.sort((a, b) => a.score - b.score); // ascending for bottom-up reveal
           result.scores = scores;

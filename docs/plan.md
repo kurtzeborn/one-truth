@@ -759,10 +759,10 @@ one-truth/
 - [x] Game cleanup
 
 ### Phase 6: Polish & Stretch
-- [ ] Fastest vote bonus (+2 points) — stretch goal
-- [ ] Speed bonus badge display
-- [ ] Responsive design polish (projector vs phone)
-- [ ] Error handling and edge cases
+- [x] Fastest vote bonus (+2 points) — stretch goal
+- [x] Speed bonus badge display
+- [x] Responsive design polish (projector vs phone)
+- [x] Error handling and edge cases
 
 ---
 

@@ -270,7 +270,7 @@ function VotingView({ gameId, game, groups }: {
           {statements.map(s => (
             <div key={s.statementNumber} className="bg-gray-800 rounded-lg p-6">
               <span className="text-gray-500 text-sm">Statement {s.statementNumber}</span>
-              <p className="text-xl mt-1">{s.text}</p>
+              <p className="text-2xl mt-1">{s.text}</p>
             </div>
           ))}
         </div>
@@ -329,6 +329,11 @@ function VotingView({ gameId, game, groups }: {
               </span>
             )}
           </p>
+          {results.fastestVoter && (
+            <p className="text-yellow-400 text-sm">
+              ⚡ Speed Bonus: {results.fastestVoter} (+2 pts)
+            </p>
+          )}
         </div>
 
         <div className="flex justify-center pt-4">
@@ -413,7 +418,7 @@ function ResultsView({ gameId, onDelete }: { gameId: string; onDelete: () => voi
   });
 
   return (
-    <div>
+    <div className="w-full max-w-4xl">
       <h2 className="text-2xl font-bold mb-6 text-center">Final Results</h2>
       {state?.scores ? (
         <Leaderboard scores={state.scores} />

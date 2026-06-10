@@ -91,9 +91,23 @@ app.http('closeVoting', {
       const votes = await getGroupVotes(gameId, letter);
 
       // Score each vote and update player scores
+      // First pass: find the fastest correct vote
+      let fastestCorrectVote: VoteEntity | null = null;
       for (const vote of votes) {
         const isCorrect = vote.chosenStatement === lieStatementNumber;
-        const pointsAwarded = isCorrect ? 3 : 0;
+        if (isCorrect) {
+          if (!fastestCorrectVote || new Date(vote.votedAt).getTime() < new Date(fastestCorrectVote.votedAt).getTime()) {
+            fastestCorrectVote = vote;
+          }
+        }
+      }
+
+      // Second pass: score votes and update players
+      let fastestVoterName: string | undefined;
+      for (const vote of votes) {
+        const isCorrect = vote.chosenStatement === lieStatementNumber;
+        const isFastest = isCorrect && fastestCorrectVote !== null && vote.rowKey === fastestCorrectVote.rowKey;
+        const pointsAwarded = isCorrect ? (isFastest ? 5 : 3) : 0;
 
         await votesTable.updateEntity({
           partitionKey: gameId,
@@ -105,11 +119,21 @@ app.http('closeVoting', {
         if (pointsAwarded > 0) {
           try {
             const player = await playersTable.getEntity<PlayerEntity>(gameId, vote.playerId);
-            await playersTable.updateEntity({
-              partitionKey: gameId,
-              rowKey: vote.playerId,
-              score: (player.score || 0) + pointsAwarded,
-            }, 'Merge');
+            if (isFastest) {
+              await playersTable.updateEntity({
+                partitionKey: gameId,
+                rowKey: vote.playerId,
+                score: (player.score || 0) + pointsAwarded,
+                speedBonuses: (player.speedBonuses || 0) + 1,
+              }, 'Merge');
+              fastestVoterName = player.displayName;
+            } else {
+              await playersTable.updateEntity({
+                partitionKey: gameId,
+                rowKey: vote.playerId,
+                score: (player.score || 0) + pointsAwarded,
+              }, 'Merge');
+            }
           } catch (error: any) {
             if (error.statusCode !== 404) throw error;
           }
@@ -140,6 +164,7 @@ app.http('closeVoting', {
           correctVotes: votes.filter(v => v.chosenStatement === lieStatementNumber).length,
           breakdown: { statement1: breakdown[0], statement2: breakdown[1], statement3: breakdown[2] },
           votedGroups,
+          fastestVoter: fastestVoterName || null,
         },
       };
     } catch (error) {
@@ -262,11 +287,22 @@ app.http('getVotingResults', {
       const votes = await getGroupVotes(gameId, letter);
       const breakdown = [0, 0, 0];
       let correctVotes = 0;
+      let fastestVoter: string | null = null;
       for (const v of votes) {
         if (v.isCorrect) correctVotes++;
+        if (v.pointsAwarded === 5) fastestVoter = v.playerId;
         if (v.chosenStatement >= 1 && v.chosenStatement <= 3) {
           breakdown[v.chosenStatement - 1]++;
         }
+      }
+
+      // Look up fastest voter's display name
+      let fastestVoterName: string | null = null;
+      if (fastestVoter) {
+        try {
+          const player = await playersTable.getEntity<PlayerEntity>(gameId, fastestVoter);
+          fastestVoterName = player.displayName;
+        } catch { /* ignore */ }
       }
 
       return {
@@ -276,6 +312,7 @@ app.http('getVotingResults', {
           totalVotes: votes.length,
           correctVotes,
           breakdown: { statement1: breakdown[0], statement2: breakdown[1], statement3: breakdown[2] },
+          fastestVoter: fastestVoterName,
         },
       };
     } catch (error) {

@@ -130,6 +130,7 @@ export interface VotingCloseResult {
   correctVotes: number;
   breakdown: { statement1: number; statement2: number; statement3: number };
   votedGroups: string[];
+  fastestVoter: string | null;
 }
 
 export async function closeVoting(gameId: string, letter: string): Promise<VotingCloseResult> {
@@ -141,6 +142,7 @@ export interface VotingResults {
   totalVotes: number;
   correctVotes: number;
   breakdown: { statement1: number; statement2: number; statement3: number };
+  fastestVoter: string | null;
 }
 
 export async function fetchVotingResults(gameId: string, letter: string): Promise<VotingResults> {

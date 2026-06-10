@@ -16,6 +16,7 @@ export interface PlayerEntity {
   groupLetter?: string;
   joinedAt: Date;
   score: number;
+  speedBonuses?: number;
 }
 
 export interface StatementEntity {

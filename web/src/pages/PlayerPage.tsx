@@ -236,7 +236,10 @@ function VotingSection({ state, session }: { state: GameState; session: PlayerSe
             {lieStatement ? ` — the lie was statement ${lieStatement.statementNumber}` : ''}
           </p>
           {result.pointsAwarded > 0 && (
-            <p className="text-green-400 font-bold mt-1">+{result.pointsAwarded} points</p>
+            <p className="text-green-400 font-bold mt-1">
+              +{result.pointsAwarded} points
+              {result.speedBonus && <span className="text-yellow-400 ml-2">⚡ Speed Bonus!</span>}
+            </p>
           )}
         </div>
       </div>

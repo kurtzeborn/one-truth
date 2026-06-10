@@ -203,38 +203,56 @@ describe('closeVoting', () => {
       { statementNumber: 3, text: 'S3', isLie: false },
     ] as any);
 
-    // Two votes: one correct (chose 2), one wrong (chose 1)
+    // Two correct votes: p1 voted first, p2 voted later; p3 voted wrong
     mockGetGroupVotes.mockResolvedValue([
-      { rowKey: 'p1_A', playerId: 'p1', groupLetter: 'A', chosenStatement: 2 },
-      { rowKey: 'p2_A', playerId: 'p2', groupLetter: 'A', chosenStatement: 1 },
+      { rowKey: 'p1_A', playerId: 'p1', groupLetter: 'A', chosenStatement: 2, votedAt: new Date('2026-01-01T00:00:01Z') },
+      { rowKey: 'p2_A', playerId: 'p2', groupLetter: 'A', chosenStatement: 2, votedAt: new Date('2026-01-01T00:00:05Z') },
+      { rowKey: 'p3_A', playerId: 'p3', groupLetter: 'A', chosenStatement: 1, votedAt: new Date('2026-01-01T00:00:00Z') },
     ] as any);
 
-    mockPlayersGet.mockResolvedValue({ rowKey: 'p1', score: 0 } as any);
+    mockPlayersGet
+      .mockResolvedValueOnce({ rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0 } as any)
+      .mockResolvedValueOnce({ rowKey: 'p2', displayName: 'Bob', score: 0, speedBonuses: 0 } as any);
 
     const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'A' }), mockContext);
     expect(res.status).toBe(200);
     expect(res.jsonBody.lieStatementNumber).toBe(2);
-    expect(res.jsonBody.totalVotes).toBe(2);
-    expect(res.jsonBody.correctVotes).toBe(1);
-    expect(res.jsonBody.breakdown).toEqual({ statement1: 1, statement2: 1, statement3: 0 });
+    expect(res.jsonBody.totalVotes).toBe(3);
+    expect(res.jsonBody.correctVotes).toBe(2);
+    expect(res.jsonBody.breakdown).toEqual({ statement1: 1, statement2: 2, statement3: 0 });
+    expect(res.jsonBody.fastestVoter).toBe('Alice');
 
-    // Correct voter gets 3 points
+    // Fastest correct voter (p1) gets 5 points (3 + 2 bonus)
     expect(mockVotesUpdate).toHaveBeenCalledWith(expect.objectContaining({
       rowKey: 'p1_A',
+      isCorrect: true,
+      pointsAwarded: 5,
+    }), 'Merge');
+
+    // Second correct voter (p2) gets 3 points
+    expect(mockVotesUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      rowKey: 'p2_A',
       isCorrect: true,
       pointsAwarded: 3,
     }), 'Merge');
 
     // Wrong voter gets 0 points
     expect(mockVotesUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      rowKey: 'p2_A',
+      rowKey: 'p3_A',
       isCorrect: false,
       pointsAwarded: 0,
     }), 'Merge');
 
-    // Player score updated for correct voter
+    // Player p1 score updated with 5 pts + speedBonuses incremented
     expect(mockPlayersUpdate).toHaveBeenCalledWith(expect.objectContaining({
       rowKey: 'p1',
+      score: 5,
+      speedBonuses: 1,
+    }), 'Merge');
+
+    // Player p2 score updated with 3 pts (no speed bonus)
+    expect(mockPlayersUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      rowKey: 'p2',
       score: 3,
     }), 'Merge');
 
@@ -250,5 +268,23 @@ describe('closeVoting', () => {
     const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'B' }), mockContext);
     expect(res.status).toBe(400);
     expect(res.jsonBody.error).toContain('not currently being voted on');
+  });
+
+  it('handles no correct votes (no speed bonus)', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'voting', currentVotingGroup: 'A', votedGroups: '[]' } as any);
+    mockGetGroupStatements.mockResolvedValue([
+      { statementNumber: 1, text: 'S1', isLie: false },
+      { statementNumber: 2, text: 'S2', isLie: true },
+      { statementNumber: 3, text: 'S3', isLie: false },
+    ] as any);
+    mockGetGroupVotes.mockResolvedValue([
+      { rowKey: 'p1_A', playerId: 'p1', groupLetter: 'A', chosenStatement: 1, votedAt: new Date('2026-01-01T00:00:01Z') },
+    ] as any);
+
+    const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'A' }), mockContext);
+    expect(res.status).toBe(200);
+    expect(res.jsonBody.correctVotes).toBe(0);
+    expect(res.jsonBody.fastestVoter).toBeNull();
+    expect(mockPlayersUpdate).not.toHaveBeenCalled();
   });
 });
