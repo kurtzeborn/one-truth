@@ -18,11 +18,13 @@ export function Leaderboard({ scores, compact }: { scores: ScoreEntry[]; compact
   const startedRef = useRef(false);
   const total = scores.length;
 
+  // Exponential slowdown: 0.5s for first gap, 1.5s for last gap
+  // gap(j) = 0.5 * 3^(j / (N-2)) where j is the gap index (0 to N-2)
   const getDelay = useCallback((index: number) => {
-    const rank = total - index; // 1-based rank from top
-    if (rank <= 3) return 1000;
-    if (total >= 50 && index < Math.floor(total / 2)) return 200;
-    return 500;
+    if (total <= 2) return 1500;
+    const j = index - 1; // gap index (0-based, since index 0 has no gap before it)
+    const maxJ = total - 2;
+    return Math.round(500 * Math.pow(3, j / maxJ));
   }, [total]);
 
   useEffect(() => {
