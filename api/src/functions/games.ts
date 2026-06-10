@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { gamesTable, playersTable, statementsTable, votesTable } from '../shared/storage.js';
 import { requireGameKeeper, AuthError } from '../shared/auth.js';
-import { GameEntity } from '../shared/types.js';
+import { GameEntity, PlayerEntity } from '../shared/types.js';
 import { validateGameId, getGameEntity } from '../shared/helpers.js';
 
 // Generate a random 4-character alphanumeric code
@@ -65,6 +65,61 @@ app.http('createGame', {
       }
       context.error('Failed to create game:', error);
       return { status: 500, jsonBody: { error: 'Failed to create game' } };
+    }
+  },
+});
+
+// GET /api/games — list all games for the current game keeper
+app.http('listGames', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'games',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const user = await requireGameKeeper(request);
+
+      // Get all games created by this game keeper
+      const gameEntities = gamesTable.listEntities<GameEntity>({
+        queryOptions: { filter: `PartitionKey eq 'game' and createdBy eq '${user.userDetails}'` },
+      });
+
+      const games: Array<{
+        id: string;
+        createdAt: string;
+        status: string;
+        groupSize: number;
+        playerCount: number;
+      }> = [];
+
+      for await (const entity of gameEntities) {
+        // Count players for each game
+        let playerCount = 0;
+        const players = playersTable.listEntities<PlayerEntity>({
+          queryOptions: { filter: `PartitionKey eq '${entity.rowKey}'`, select: ['rowKey'] },
+        });
+        for await (const _p of players) {
+          playerCount++;
+        }
+
+        games.push({
+          id: entity.rowKey!,
+          createdAt: entity.createdAt instanceof Date ? entity.createdAt.toISOString() : String(entity.createdAt),
+          status: entity.status,
+          groupSize: entity.groupSize,
+          playerCount,
+        });
+      }
+
+      // Sort newest first
+      games.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      return { status: 200, jsonBody: games };
+    } catch (error) {
+      if (error instanceof AuthError) {
+        return { status: error.statusCode, jsonBody: { error: error.message } };
+      }
+      context.error('Failed to list games:', error);
+      return { status: 500, jsonBody: { error: 'Failed to list games' } };
     }
   },
 });

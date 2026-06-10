@@ -51,6 +51,18 @@ export async function fetchAuthStatus(): Promise<AuthStatus> {
 
 // ============ Games ============
 
+export interface GameSummary {
+  id: string;
+  createdAt: string;
+  status: string;
+  groupSize: number;
+  playerCount: number;
+}
+
+export async function fetchGames(): Promise<GameSummary[]> {
+  return apiFetch<GameSummary[]>('/games');
+}
+
 export async function createGame(): Promise<Game> {
   return apiFetch<Game>('/games', { method: 'POST' });
 }
