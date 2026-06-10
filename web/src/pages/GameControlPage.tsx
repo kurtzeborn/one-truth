@@ -6,6 +6,8 @@ import { fetchAuthStatus, fetchGame, fetchGameState, fetchGroups, assignGroups, 
 import type { GroupInfo } from '../api';
 import type { Game } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
+import { QRModal } from '../components/QRModal';
+import { RulesModal } from '../components/RulesModal';
 
 function LobbyView({ gameId, playerCount, players }: {
   gameId: string;
@@ -433,6 +435,8 @@ export function GameControlPage() {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [showQR, setShowQR] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const { data: auth, isLoading: authLoading } = useQuery({
     queryKey: ['auth'],
@@ -456,6 +460,14 @@ export function GameControlPage() {
     queryFn: () => fetchGameState(gameId!, '__gk__'),
     enabled: !!gameId && game?.status === 'lobby',
     refetchInterval: 3000,
+  });
+
+  // Poll for late arrival status in non-lobby phases
+  const { data: gkState } = useQuery({
+    queryKey: ['gameState', gameId, 'gk'],
+    queryFn: () => fetchGameState(gameId!, '__gk__'),
+    enabled: !!gameId && game?.status !== 'lobby' && game?.status !== undefined,
+    refetchInterval: game?.status === 'results' ? false : 10000,
   });
 
   // Fetch groups when in grouping or statements phase
@@ -501,6 +513,9 @@ export function GameControlPage() {
     );
   }
 
+  const showQRButton = game.status === 'grouping' || game.status === 'statements' || game.status === 'voting';
+  const hasLateArrivals = gkState?.hasLateArrivals || false;
+
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-4xl mx-auto">
@@ -511,6 +526,22 @@ export function GameControlPage() {
             <h1 className="text-2xl font-bold mt-1">Game {game.id}</h1>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowRules(true)}
+              className="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-sm font-bold"
+              title="Scoring rules"
+            >
+              ?
+            </button>
+            {showQRButton && (
+              <button
+                onClick={() => setShowQR(true)}
+                className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 text-sm"
+                title="Show QR code for late arrivals"
+              >
+                📱 QR
+              </button>
+            )}
             <span className="px-3 py-1 rounded-full bg-gray-800 text-sm capitalize">{game.status}</span>
             {game.status === 'lobby' && (
               <button
@@ -522,6 +553,10 @@ export function GameControlPage() {
             )}
           </div>
         </div>
+
+        {/* Modals */}
+        {showQR && <QRModal gameId={game.id} onClose={() => setShowQR(false)} />}
+        {showRules && <RulesModal hasLateArrivals={hasLateArrivals} onClose={() => setShowRules(false)} />}
 
         {/* Phase-specific content */}
         <div className="flex justify-center">

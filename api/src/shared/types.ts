@@ -17,6 +17,7 @@ export interface PlayerEntity {
   joinedAt: Date;
   score: number;
   speedBonuses?: number;
+  lateArrival?: boolean;
 }
 
 export interface StatementEntity {

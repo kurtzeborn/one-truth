@@ -122,6 +122,16 @@ describe('castVote', () => {
     expect(res.status).toBe(409);
   });
 
+  it('allows late arrivals to vote on any group', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'voting', currentVotingGroup: 'A', votedGroups: '[]' } as any);
+    // Late arrival: no groupLetter
+    mockPlayersGet.mockResolvedValue({ rowKey: 'p1', groupLetter: undefined, lateArrival: true } as any);
+    mockVotesGet.mockRejectedValue({ statusCode: 404 });
+
+    const res = await handler()(makeRequest({ gameId: 'ABCD' }, { playerId: 'p1', groupLetter: 'A', chosenStatement: 2 }), mockContext);
+    expect(res.status).toBe(201);
+  });
+
   it('rejects vote when not in voting phase', async () => {
     mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'statements', currentVotingGroup: 'A', votedGroups: '[]' } as any);
 
@@ -286,5 +296,65 @@ describe('closeVoting', () => {
     expect(res.jsonBody.correctVotes).toBe(0);
     expect(res.jsonBody.fastestVoter).toBeNull();
     expect(mockPlayersUpdate).not.toHaveBeenCalled();
+  });
+
+  it('awards late arrivals 2 points instead of 3', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'voting', currentVotingGroup: 'A', votedGroups: '[]' } as any);
+    mockGetGroupStatements.mockResolvedValue([
+      { statementNumber: 1, text: 'S1', isLie: false },
+      { statementNumber: 2, text: 'S2', isLie: true },
+      { statementNumber: 3, text: 'S3', isLie: false },
+    ] as any);
+
+    // Regular player p1 (correct, fastest), late arrival p2 (correct)
+    mockGetGroupVotes.mockResolvedValue([
+      { rowKey: 'p1_A', playerId: 'p1', groupLetter: 'A', chosenStatement: 2, votedAt: new Date('2026-01-01T00:00:01Z') },
+      { rowKey: 'p2_A', playerId: 'p2', groupLetter: 'A', chosenStatement: 2, votedAt: new Date('2026-01-01T00:00:05Z') },
+    ] as any);
+
+    mockPlayersGet
+      .mockResolvedValueOnce({ rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0 } as any) // regular player
+      .mockResolvedValueOnce({ rowKey: 'p2', displayName: 'Bob', score: 0, speedBonuses: 0, lateArrival: true } as any); // late arrival
+
+    const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'A' }), mockContext);
+    expect(res.status).toBe(200);
+
+    // Regular player p1: fastest correct = 3 + 2 = 5 pts
+    expect(mockVotesUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      rowKey: 'p1_A', pointsAwarded: 5,
+    }), 'Merge');
+
+    // Late arrival p2: correct = 2 pts (not 3)
+    expect(mockVotesUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      rowKey: 'p2_A', pointsAwarded: 2,
+    }), 'Merge');
+
+    expect(mockPlayersUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      rowKey: 'p2', score: 2,
+    }), 'Merge');
+  });
+
+  it('awards late arrival 4 points for fastest correct (2 + 2 bonus)', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'voting', currentVotingGroup: 'A', votedGroups: '[]' } as any);
+    mockGetGroupStatements.mockResolvedValue([
+      { statementNumber: 1, text: 'S1', isLie: false },
+      { statementNumber: 2, text: 'S2', isLie: true },
+      { statementNumber: 3, text: 'S3', isLie: false },
+    ] as any);
+
+    // Late arrival p1 is the only (and fastest) correct voter
+    mockGetGroupVotes.mockResolvedValue([
+      { rowKey: 'p1_A', playerId: 'p1', groupLetter: 'A', chosenStatement: 2, votedAt: new Date('2026-01-01T00:00:01Z') },
+    ] as any);
+
+    mockPlayersGet.mockResolvedValueOnce({ rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0, lateArrival: true } as any);
+
+    const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'A' }), mockContext);
+    expect(res.status).toBe(200);
+
+    // Late arrival fastest: 2 + 2 = 4 pts
+    expect(mockVotesUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      rowKey: 'p1_A', pointsAwarded: 4,
+    }), 'Merge');
   });
 });

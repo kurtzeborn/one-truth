@@ -15,6 +15,7 @@ export interface Player {
   groupLetter?: string;
   joinedAt: string;
   score: number;
+  lateArrival?: boolean;
 }
 
 export interface Statement {
@@ -65,7 +66,7 @@ export interface GameKeeper {
 // Unified game state returned by the polling endpoint
 export interface GameState {
   game: Pick<Game, 'id' | 'status' | 'groupSize' | 'currentVotingGroup' | 'votedGroups'>;
-  player?: Pick<Player, 'id' | 'displayName' | 'groupLetter' | 'score'>;
+  player?: Pick<Player, 'id' | 'displayName' | 'groupLetter' | 'score' | 'lateArrival'>;
   players?: Array<{ id: string; displayName: string }>;
   groupMembers?: Array<{ id: string; displayName: string }>;
   statements?: Array<{ statementNumber: number; text: string; isLie: boolean }>;
@@ -74,5 +75,6 @@ export interface GameState {
   voteCount?: number;
   votingClosed?: boolean;
   playerVoteResult?: { chosenStatement: number; isCorrect: boolean; pointsAwarded: number; speedBonus?: boolean };
-  scores?: Array<{ id: string; displayName: string; score: number; speedBonuses?: number }>;
+  hasLateArrivals?: boolean;
+  scores?: Array<{ id: string; displayName: string; score: number; speedBonuses?: number; lateArrival?: boolean }>;
 }

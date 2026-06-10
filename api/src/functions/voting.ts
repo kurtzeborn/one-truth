@@ -107,7 +107,17 @@ app.http('closeVoting', {
       for (const vote of votes) {
         const isCorrect = vote.chosenStatement === lieStatementNumber;
         const isFastest = isCorrect && fastestCorrectVote !== null && vote.rowKey === fastestCorrectVote.rowKey;
-        const pointsAwarded = isCorrect ? (isFastest ? 5 : 3) : 0;
+
+        // Look up player to check late arrival status
+        let player: PlayerEntity | null = null;
+        try {
+          player = await playersTable.getEntity<PlayerEntity>(gameId, vote.playerId);
+        } catch (error: any) {
+          if (error.statusCode !== 404) throw error;
+        }
+
+        const basePoints = player?.lateArrival ? 2 : 3;
+        const pointsAwarded = isCorrect ? (isFastest ? basePoints + 2 : basePoints) : 0;
 
         await votesTable.updateEntity({
           partitionKey: gameId,
@@ -116,26 +126,21 @@ app.http('closeVoting', {
           pointsAwarded,
         }, 'Merge');
 
-        if (pointsAwarded > 0) {
-          try {
-            const player = await playersTable.getEntity<PlayerEntity>(gameId, vote.playerId);
-            if (isFastest) {
-              await playersTable.updateEntity({
-                partitionKey: gameId,
-                rowKey: vote.playerId,
-                score: (player.score || 0) + pointsAwarded,
-                speedBonuses: (player.speedBonuses || 0) + 1,
-              }, 'Merge');
-              fastestVoterName = player.displayName;
-            } else {
-              await playersTable.updateEntity({
-                partitionKey: gameId,
-                rowKey: vote.playerId,
-                score: (player.score || 0) + pointsAwarded,
-              }, 'Merge');
-            }
-          } catch (error: any) {
-            if (error.statusCode !== 404) throw error;
+        if (pointsAwarded > 0 && player) {
+          if (isFastest) {
+            await playersTable.updateEntity({
+              partitionKey: gameId,
+              rowKey: vote.playerId,
+              score: (player.score || 0) + pointsAwarded,
+              speedBonuses: (player.speedBonuses || 0) + 1,
+            }, 'Merge');
+            fastestVoterName = player.displayName;
+          } else {
+            await playersTable.updateEntity({
+              partitionKey: gameId,
+              rowKey: vote.playerId,
+              score: (player.score || 0) + pointsAwarded,
+            }, 'Merge');
           }
         }
       }

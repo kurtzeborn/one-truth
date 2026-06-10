@@ -30,10 +30,13 @@ vi.mock('../shared/helpers.js', () => ({
 }));
 
 import { requireGameKeeper } from '../shared/auth.js';
+import { getGameEntity } from '../shared/helpers.js';
 
 const mockRequireGK = vi.mocked(requireGameKeeper);
 const mockGamesListEntities = vi.mocked(gamesTable.listEntities);
 const mockPlayersListEntities = vi.mocked(playersTable.listEntities);
+const mockPlayersCreate = vi.mocked(playersTable.createEntity);
+const mockGetGame = vi.mocked(getGameEntity);
 
 // Capture handlers
 const handlers: Record<string, any> = {};
@@ -124,5 +127,67 @@ describe('listGames', () => {
 
     const response = await handlers.listGames(makeRequest(), mockContext);
     expect(response.status).toBe(403);
+  });
+});
+
+describe('joinGame', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('joins during lobby without lateArrival flag', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'lobby' } as any);
+
+    const response = await handlers.joinGame(
+      makeRequest({ gameId: 'ABCD' }, { displayName: 'Alice' }),
+      mockContext,
+    );
+    expect(response.status).toBe(201);
+    expect(response.jsonBody.playerId).toBeDefined();
+    expect(mockPlayersCreate).toHaveBeenCalledWith(expect.not.objectContaining({ lateArrival: true }));
+  });
+
+  it('joins during grouping as late arrival', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'grouping' } as any);
+
+    const response = await handlers.joinGame(
+      makeRequest({ gameId: 'ABCD' }, { displayName: 'Bob' }),
+      mockContext,
+    );
+    expect(response.status).toBe(201);
+    expect(mockPlayersCreate).toHaveBeenCalledWith(expect.objectContaining({ lateArrival: true }));
+  });
+
+  it('joins during statements as late arrival', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'statements' } as any);
+
+    const response = await handlers.joinGame(
+      makeRequest({ gameId: 'ABCD' }, { displayName: 'Charlie' }),
+      mockContext,
+    );
+    expect(response.status).toBe(201);
+    expect(mockPlayersCreate).toHaveBeenCalledWith(expect.objectContaining({ lateArrival: true }));
+  });
+
+  it('joins during voting as late arrival', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'voting' } as any);
+
+    const response = await handlers.joinGame(
+      makeRequest({ gameId: 'ABCD' }, { displayName: 'Dana' }),
+      mockContext,
+    );
+    expect(response.status).toBe(201);
+    expect(mockPlayersCreate).toHaveBeenCalledWith(expect.objectContaining({ lateArrival: true }));
+  });
+
+  it('rejects join during results', async () => {
+    mockGetGame.mockResolvedValue({ rowKey: 'ABCD', status: 'results' } as any);
+
+    const response = await handlers.joinGame(
+      makeRequest({ gameId: 'ABCD' }, { displayName: 'Eve' }),
+      mockContext,
+    );
+    expect(response.status).toBe(400);
+    expect(response.jsonBody.error).toContain('already in progress');
   });
 });

@@ -232,9 +232,11 @@ app.http('joinGame', {
         return { status: 404, jsonBody: { error: 'Game not found' } };
       }
 
-      if (game.status !== 'lobby') {
+      if (game.status === 'results') {
         return { status: 400, jsonBody: { error: 'Game is already in progress' } };
       }
+
+      const isLateArrival = game.status !== 'lobby';
 
       // Generate player ID
       const playerId = crypto.randomUUID();
@@ -245,6 +247,7 @@ app.http('joinGame', {
         displayName,
         joinedAt: new Date(),
         score: 0,
+        ...(isLateArrival ? { lateArrival: true } : {}),
       });
 
       return {

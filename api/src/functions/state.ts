@@ -54,6 +54,7 @@ app.http('getGameState', {
         displayName: player.displayName,
         groupLetter: player.groupLetter,
         score: player.score,
+        lateArrival: player.lateArrival || false,
       } : undefined;
 
       const result: Record<string, unknown> = { game: gameData, player: playerData || null };
@@ -140,17 +141,29 @@ app.http('getGameState', {
         }
 
         case 'results': {
-          const scores: Array<{ id: string; displayName: string; score: number; speedBonuses: number }> = [];
+          const scores: Array<{ id: string; displayName: string; score: number; speedBonuses: number; lateArrival: boolean }> = [];
           const entities = playersTable.listEntities<PlayerEntity>({
             queryOptions: { filter: `PartitionKey eq '${gameId}'` },
           });
           for await (const p of entities) {
-            scores.push({ id: p.rowKey, displayName: p.displayName, score: p.score, speedBonuses: p.speedBonuses || 0 });
+            scores.push({ id: p.rowKey, displayName: p.displayName, score: p.score, speedBonuses: p.speedBonuses || 0, lateArrival: p.lateArrival || false });
           }
           scores.sort((a, b) => a.score - b.score); // ascending for bottom-up reveal
           result.scores = scores;
           break;
         }
+      }
+
+      // Check if any late arrivals exist (for rules display)
+      if (game.status !== 'lobby') {
+        let hasLateArrivals = false;
+        const allPlayerEntities = playersTable.listEntities<PlayerEntity>({
+          queryOptions: { filter: `PartitionKey eq '${gameId}'`, select: ['lateArrival'] },
+        });
+        for await (const p of allPlayerEntities) {
+          if (p.lateArrival) { hasLateArrivals = true; break; }
+        }
+        result.hasLateArrivals = hasLateArrivals;
       }
 
       return { status: 200, jsonBody: result };

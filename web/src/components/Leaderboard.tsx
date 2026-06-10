@@ -6,6 +6,7 @@ interface ScoreEntry {
   displayName: string;
   score: number;
   speedBonuses?: number;
+  lateArrival?: boolean;
 }
 
 // Scores arrive sorted ascending (lowest first) for bottom-up reveal.
@@ -114,6 +115,9 @@ export function Leaderboard({ scores, compact }: { scores: ScoreEntry[]; compact
                 <span className="text-yellow-400 text-xs ml-1" title={`${entry.speedBonuses} speed bonus${entry.speedBonuses > 1 ? 'es' : ''}`}>
                   ⚡{entry.speedBonuses > 1 ? `×${entry.speedBonuses}` : ''}
                 </span>
+              )}
+              {entry.lateArrival && (
+                <span className="text-gray-500 text-xs ml-1 px-1.5 py-0.5 rounded bg-gray-700/50">Late</span>
               )}
             </div>
             <span className={`

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchGameState, updateStatement, castVote } from '../api';
 import type { PlayerSession, GameState } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
+import { RulesModal } from '../components/RulesModal';
 
 function LobbySection({ state }: { state: GameState }) {
   return (
@@ -11,6 +12,21 @@ function LobbySection({ state }: { state: GameState }) {
       <h2 className="text-2xl font-bold mb-4">You're in!</h2>
       <p className="text-gray-400 mb-2">Waiting for groups to be assigned...</p>
       <p className="text-gray-500">{state.players?.length ?? 0} players joined</p>
+    </div>
+  );
+}
+
+function LateArrivalWaitingSection({ state }: { state: GameState }) {
+  return (
+    <div className="text-center">
+      <h2 className="text-2xl font-bold mb-4">You're in!</h2>
+      <p className="text-blue-400 mb-2">You joined as a late arrival</p>
+      <p className="text-gray-400 mb-4">
+        {state.game.status === 'grouping'
+          ? 'Groups are being organized. You\'ll be able to vote once voting starts.'
+          : 'Groups are writing their statements. You\'ll be able to vote soon.'}
+      </p>
+      <p className="text-gray-500 text-sm">Late arrivals earn 2 pts per correct vote instead of 3</p>
     </div>
   );
 }
@@ -339,6 +355,8 @@ function ResultsSection({ state }: { state: GameState }) {
 }
 
 export function PlayerPage() {
+  const [showRules, setShowRules] = useState(false);
+
   // Read session from localStorage once (not in an effect)
   const session = useMemo<PlayerSession | null>(() => {
     try {
@@ -388,16 +406,32 @@ export function PlayerPage() {
     );
   }
 
+  const isLateArrival = state?.player?.lateArrival || false;
+  const hasLateArrivals = state?.hasLateArrivals || false;
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4 relative">
+      {/* Rules button */}
+      {state && state.game.status !== 'lobby' && (
+        <button
+          onClick={() => setShowRules(true)}
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-sm font-bold"
+          title="Scoring rules"
+        >
+          ?
+        </button>
+      )}
+      {showRules && <RulesModal hasLateArrivals={hasLateArrivals} onClose={() => setShowRules(false)} />}
       {!state ? (
         <p className="text-gray-400">Loading...</p>
       ) : (
         (() => {
           switch (state.game.status) {
             case 'lobby': return <LobbySection state={state} />;
-            case 'grouping': return <GroupingSection state={state} />;
-            case 'statements': return <StatementsSection state={state} session={session} />;
+            case 'grouping':
+              return isLateArrival ? <LateArrivalWaitingSection state={state} /> : <GroupingSection state={state} />;
+            case 'statements':
+              return isLateArrival ? <LateArrivalWaitingSection state={state} /> : <StatementsSection state={state} session={session} />;
             case 'voting': return <VotingSection state={state} session={session} />;
             case 'results': return <ResultsSection state={state} />;
           }
