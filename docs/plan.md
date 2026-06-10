@@ -782,3 +782,23 @@ one-truth/
 | Group has only 1 player | Allowed but impractical — GK should set appropriate group size |
 | Game code collision | Generate new code if collision detected (4-char = 1.6M combinations) |
 | Game Keeper disconnects | Game state persists in Table Storage; GK can reconnect and resume |
+
+---
+
+## Appendix A: Original Prompt
+
+> Help me make a plan for a new site/game based on the game of "2 truths and 1 lie". Some of the basic design/flow would be similar to what we did with scavenger-hunt. The basic idea would be that a gamekeeper (which requires login) would be able to create a new game and show everyone in a large audience a QR code. People would scan the QR code with their phone to join the game. They would be prompted to enter their name. Then, once everyone has joined the game, the gamekeeper could specify size to divide everyone up into groups and press a button to randomly assign everyone to a group. Their phones would then show what group they are in. Groups would be given a unique letter (I don't anticipate more than 26 groups ever).
+>
+> Then everyone playing would organize into groups and they'd determine 2 truths about the members of their group and 1 lie. Any of the group members could enter the three statements about their group. As they are entered the other players would see the statements on their screen as well. Simultanious editing of the same entry is not needed. Simple last-writer-wins on an entry is fine. The gamekeeper would be able to project a status view showing each group and a status of how many statements have been entered (0/3, 1/3, etc.).
+>
+> Once all groups have entered all three statements, the game keeper can transition the game to voting mode. Group-by-group the gamekeeper would project the statements and each person can guess on their phone which statement is the lie. 3 points for each correct vote.
+>
+> As a stretch goal after we get the game working, we could award 2 bonus points for the fastest correct vote. I don't want this to over complicate the design though, so this can be cut if needed.
+>
+> Once we've voted on all of the groups, the gamekeeper would transition to scoring mode and a list of all players would be revealed in order by score. Top scores at the top. I'm interested in quick, simple ways to make this more dramatic. Maybe reveal them in reverse order starting with the lowest and have them slide down as the next is revealed. For large groups, this would need to be quick though. Maybe .5 seconds per reveal.
+>
+> I want to create a new repo for this, call it one-truth. Create a new subdomain for this called truth.k61.dev. Create the Azure assets in this subscription: "Visual Studio Enterprise Subscription" (which I'm currently renaming to "MSDN Subscription").
+>
+> Start by creating the repo and creating a docs\plan.md file with a full plan for this project. Do not write any code.
+>
+> Ask any clarifying questions needed to fill out the plan.
