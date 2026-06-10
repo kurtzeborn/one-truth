@@ -736,11 +736,11 @@ one-truth/
 - [x] Group assignment unit tests (randomization, remainders, letter assignment)
 
 ### Phase 3: Statements
-- [ ] Statement entry form (3 statements + mark the lie)
-- [ ] Last-writer-wins statement updates
-- [ ] Group member statement view (polling)
-- [ ] Game Keeper status board (statement progress per group)
-- [ ] State transition: statements → voting
+- [x] Statement entry form (3 statements + mark the lie)
+- [x] Last-writer-wins statement updates
+- [x] Group member statement view (polling)
+- [x] Game Keeper status board (statement progress per group)
+- [x] State transition: statements → voting
 
 ### Phase 4: Voting
 - [ ] Game Keeper voting controls (open/close per group, advance to next)
