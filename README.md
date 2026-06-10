@@ -20,7 +20,7 @@ See [docs/plan.md](docs/plan.md) for the full development plan.
 ## Tech Stack
 
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
-- **Backend**: Azure Functions (Node.js, TypeScript)
+- **Backend**: SWA Managed Functions (Node.js, TypeScript)
 - **Database**: Azure Table Storage
-- **Hosting**: Azure Static Web Apps
+- **Hosting**: Azure Static Web Apps (Free tier)
 - **Auth**: Microsoft Entra ID (Game Keeper only)

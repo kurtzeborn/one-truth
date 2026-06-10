@@ -111,12 +111,9 @@ flowchart LR
     end
 
     subgraph Azure["Azure (MSDN Subscription)"]
-        subgraph SWA["Static Web Apps (Standard ~$9/mo)"]
+        subgraph SWA["Static Web Apps (Free)"]
             PWA["React SPA<br/>truth.k61.dev"]
-        end
-
-        subgraph Functions["Azure Functions (Consumption)"]
-            API["API Endpoints<br/>• Game management<br/>• Group management<br/>• Voting<br/>• Scoring"]
+            API["Managed Functions<br/>• Game management<br/>• Group management<br/>• Voting<br/>• Scoring"]
         end
 
         subgraph Data["Data Layer"]
@@ -127,15 +124,14 @@ flowchart LR
     end
 
     DNS --> SWA
-    SWA -->|"Linked Backend<br/>/api/* proxy"| Functions
     SWA -.->|"Auth"| EntraID
     API --> Tables
 ```
 
 **Architecture Notes:**
-- **SWA Standard Tier** — Required for linked backends (~$9/month)
-- **Linked Backend** — SWA proxies all `/api/*` requests to Function App
-- **Auth Header Forwarding** — SWA forwards `x-ms-client-principal` to Function App automatically
+- **SWA Free Tier** — Managed functions handle all API needs (HTTP triggers only, which is all we need)
+- **Managed Functions** — Built into SWA, no separate Function App required
+- **Auth Header Forwarding** — SWA forwards `x-ms-client-principal` to managed functions automatically
 - **No CORS Required** — All traffic flows through SWA (same origin)
 - **No Blob Storage** — Text-only game, no media uploads
 - **Cloudflare DNS** — CNAME pointing to SWA hostname (proxy disabled for SSL compatibility)
@@ -146,8 +142,7 @@ flowchart LR
 
 | Resource | Purpose | Estimated Monthly Cost |
 |----------|---------|------------------------|
-| **Azure Static Web Apps (Standard)** | Host React SPA + linked backend | $9.00 |
-| **Azure Functions (Consumption)** | API endpoints | < $0.01 |
+| **Azure Static Web Apps (Free)** | Host React SPA + managed functions | $0.00 |
 | **Azure Table Storage** | All game data | < $0.01 |
 | **Entra ID** | Game Keeper authentication | $0.00 (included) |
 | **Custom Domain (truth.k61.dev)** | Subdomain of existing domain | $0.00 (already owned) |
@@ -160,12 +155,13 @@ flowchart LR
 - ~1,400 Vote records × ~100 bytes: ~140 KB
 - **Total per game: ~175 KB** → negligible cost
 
-**Bottom line: ~$9/month, driven entirely by SWA Standard tier. Storage costs are effectively zero.**
+**Bottom line: Effectively $0/month. Free tier covers everything this app needs.**
 
 ### Optional Future Costs
 
 | Resource | When Needed | Cost |
 |----------|-------------|------|
+| **SWA Standard Tier** | If SLA or >2 custom domains needed | $9/month |
 | **Azure SignalR** | Real-time updates upgrade | ~$50/month |
 | **Application Insights** | Monitoring/debugging | Free tier: 5 GB/month |
 
@@ -476,10 +472,10 @@ Requirements:
 | Layer | Technology |
 |-------|-----------|
 | **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, React Router, React Query |
-| **Backend** | Azure Functions (Node.js 20, TypeScript) |
+| **Backend** | SWA Managed Functions (Node.js 20, TypeScript) |
 | **Database** | Azure Table Storage |
 | **Auth** | Azure Entra ID via Static Web Apps (Game Keeper only) |
-| **Hosting** | Azure Static Web Apps (Standard tier) |
+| **Hosting** | Azure Static Web Apps (Free tier) |
 | **DNS** | Cloudflare CNAME (truth.k61.dev) |
 | **IaC** | Bicep |
 | **CI/CD** | GitHub Actions |
@@ -493,10 +489,8 @@ Requirements:
 | Resource | Name | SKU/Tier |
 |----------|------|----------|
 | Resource Group | `rg-one-truth-prod` | — |
-| Static Web App | `swa-one-truth-prod` | Standard |
-| Function App | `func-one-truth-prod` | Consumption |
+| Static Web App | `swa-one-truth-prod` | Free |
 | Storage Account | `stonetruth{uniqueString}prod` | Standard_LRS |
-| App Service Plan | `asp-one-truth-prod` | Consumption (Y1) |
 
 ### Table Storage Tables
 | Table | Purpose |
@@ -509,7 +503,7 @@ Requirements:
 
 ### SWA Configuration
 - Custom domain: truth.k61.dev
-- Linked backend: Function App
+- Managed functions in `/api` directory
 - Auth: Entra ID provider enabled
 - Route rules: block direct access to `/api/*` auth endpoints
 
@@ -527,15 +521,10 @@ one-truth/
 │   ├── plan.md                  # This file
 │   ├── DEPLOYMENT.md            # Deployment guide
 │   └── DEVELOPMENT.md           # Local dev setup
-├── functions/
+├── api/                             # SWA managed functions
 │   ├── src/
-│   │   ├── games/               # Game CRUD + state transitions
-│   │   ├── players/             # Join, player list
-│   │   ├── statements/          # Statement CRUD
-│   │   ├── voting/              # Vote casting + results
-│   │   ├── scoring/             # Score calculation
-│   │   ├── gamekeepers/         # Allowlist management
-│   │   └── shared/              # Auth helpers, table client, utils
+│   │   ├── functions/               # HTTP trigger functions
+│   │   └── shared/                  # Auth helpers, table client, utils
 │   ├── host.json
 │   ├── local.settings.json
 │   ├── package.json
