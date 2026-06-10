@@ -75,7 +75,7 @@ app.http('getGame', {
   route: 'games/{gameId}',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId?.toUpperCase();
       if (!gameId) {
         return { status: 400, jsonBody: { error: 'Game ID is required' } };
       }
@@ -115,7 +115,7 @@ app.http('deleteGame', {
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
       await requireGameKeeper(request);
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId?.toUpperCase();
       if (!gameId) {
         return { status: 400, jsonBody: { error: 'Game ID is required' } };
       }
@@ -154,13 +154,18 @@ app.http('joinGame', {
   route: 'games/{gameId}/join',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId?.toUpperCase();
       if (!gameId) {
         return { status: 400, jsonBody: { error: 'Game ID is required' } };
       }
 
-      const body = await request.json() as { displayName: string };
-      const displayName = body.displayName?.trim();
+      let body;
+      try {
+        body = await request.json() as { displayName: string };
+      } catch {
+        return { status: 400, jsonBody: { error: 'Invalid JSON body' } };
+      }
+      const displayName = body.displayName?.trim()?.replace(/[<>]/g, '');
       if (!displayName || displayName.length > 20) {
         return { status: 400, jsonBody: { error: 'Display name must be 1-20 characters' } };
       }

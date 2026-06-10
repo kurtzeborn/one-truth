@@ -43,7 +43,12 @@ app.http('inviteGameKeeper', {
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
       const user = await requireGameKeeper(request);
-      const body = await request.json() as { email: string; displayName?: string };
+      let body;
+      try {
+        body = await request.json() as { email: string; displayName?: string };
+      } catch {
+        return { status: 400, jsonBody: { error: 'Invalid JSON body' } };
+      }
 
       if (!body.email) {
         return { status: 400, jsonBody: { error: 'email is required' } };
@@ -123,17 +128,17 @@ app.http('removeGameKeeper', {
   },
 });
 
-// POST /api/gamekeepers/seed
+// POST /api/gamekeepers/seed (first-run bootstrapping only)
 app.http('seedGameKeeper', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'gamekeepers/seed',
   handler: async (_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
-      try {
-        await gamekeepersTable.createTable();
-      } catch (error: any) {
-        if (error.statusCode !== 409) throw error;
+      // Only allow seeding when no gamekeepers exist yet
+      const existing = gamekeepersTable.listEntities<GameKeeperEntity>();
+      for await (const _entity of existing) {
+        return { status: 403, jsonBody: { error: 'Seed is disabled after initial setup' } };
       }
 
       const entity: GameKeeperEntity = {

@@ -75,8 +75,12 @@ function ResultsSection({ state }: { state: GameState }) {
 export function PlayerPage() {
   // Read session from localStorage once (not in an effect)
   const session = useMemo<PlayerSession | null>(() => {
-    const stored = localStorage.getItem('playerSession');
-    if (stored) return JSON.parse(stored);
+    try {
+      const stored = localStorage.getItem('playerSession');
+      if (stored) return JSON.parse(stored);
+    } catch {
+      localStorage.removeItem('playerSession');
+    }
     return null;
   }, []);
 

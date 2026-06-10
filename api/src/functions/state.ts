@@ -9,7 +9,7 @@ app.http('getGameState', {
   route: 'games/{gameId}/state',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
-      const gameId = request.params.gameId;
+      const gameId = request.params.gameId?.toUpperCase();
       const playerId = request.query.get('playerId');
 
       if (!gameId || !playerId) {
