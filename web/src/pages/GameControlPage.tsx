@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
-import { fetchGame, fetchGameState, fetchGroups, assignGroups, transitionGame, deleteGame } from '../api';
+import { fetchAuthStatus, fetchGame, fetchGameState, fetchGroups, assignGroups, transitionGame, deleteGame } from '../api';
 
 function LobbyView({ gameId, playerCount, players }: {
   gameId: string;
@@ -137,6 +137,11 @@ export function GameControlPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { data: auth, isLoading: authLoading } = useQuery({
+    queryKey: ['auth'],
+    queryFn: fetchAuthStatus,
+  });
+
   const { data: game, isLoading: gameLoading } = useQuery({
     queryKey: ['game', gameId],
     queryFn: () => fetchGame(gameId!),
@@ -171,10 +176,21 @@ export function GameControlPage() {
     },
   });
 
-  if (gameLoading) {
+  if (authLoading || gameLoading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <p className="text-gray-400">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!auth?.isGameKeeper) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">Not authorized as a game keeper</p>
+          <a href="/manage" className="text-blue-400 hover:underline">Sign in →</a>
+        </div>
       </div>
     );
   }

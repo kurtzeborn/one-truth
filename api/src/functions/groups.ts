@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { gamesTable, playersTable } from '../shared/storage.js';
 import { requireGameKeeper, AuthError } from '../shared/auth.js';
 import { GameEntity, PlayerEntity } from '../shared/types.js';
+import { shuffle, assignToGroups, MAX_GROUPS } from '../shared/groups.js';
 
 // POST /api/games/:id/assign-groups
 app.http('assignGroups', {
@@ -56,25 +57,19 @@ app.http('assignGroups', {
         return { status: 400, jsonBody: { error: 'At least 2 players are required to assign groups' } };
       }
 
-      // Shuffle players randomly (Fisher-Yates)
-      const shuffled = [...players];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-
-      // Assign group letters
-      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      // Shuffle and assign to groups
+      const shuffled = shuffle([...players]);
       const numGroups = Math.ceil(shuffled.length / groupSize);
 
-      if (numGroups > 26) {
+      if (numGroups > MAX_GROUPS) {
         return { status: 400, jsonBody: { error: 'Too many groups. Increase group size.' } };
       }
 
-      // Distribute players evenly across groups
-      for (let i = 0; i < shuffled.length; i++) {
-        const groupIndex = i % numGroups;
-        shuffled[i].groupLetter = letters[groupIndex];
+      const groupMap = assignToGroups(shuffled, groupSize);
+      for (const [letter, members] of groupMap) {
+        for (const member of members) {
+          member.groupLetter = letter;
+        }
       }
 
       // Update all players with group assignments
