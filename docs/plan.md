@@ -644,7 +644,6 @@ Smoke (main, after deploy):
 ### Entra ID App Registrations
 | App | App ID | Purpose |
 |-----|--------|--------|
-| `one-truth-prod` | `2c7ff35e-5a88-4339-b134-018df6c14972` | _(unused — kept for reference if Standard tier upgrade needed)_ |
 | `github-actions-one-truth` | `0c6f23aa-2ab8-4b71-96cb-791dbe05f0d5` | GitHub Actions OIDC (CI/CD deployment) |
 
 ### Table Storage Tables
