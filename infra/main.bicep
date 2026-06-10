@@ -26,7 +26,7 @@ param tags object = {
 
 var resourceSuffix = environment == 'prod' ? '-prod' : '-${environment}'
 var staticSiteName = 'swa-one-truth${resourceSuffix}'
-var storageAccountName = 'stonetruth${uniqueString(resourceGroup().id)}${environment}'
+var storageAccountName = 'st1t${uniqueString(resourceGroup().id)}${environment}'
 
 // Storage Account
 module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
