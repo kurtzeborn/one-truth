@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Start the local development environment for Spot the Lie.
+    Start the local development environment for Truth Finder.
 
 .DESCRIPTION
     Uses SWA CLI with Azurite for local development.
@@ -16,7 +16,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "`nSpot the Lie - Local Development Setup" -ForegroundColor Cyan
+Write-Host "`nTruth Finder - Local Development Setup" -ForegroundColor Cyan
 Write-Host "====================================`n" -ForegroundColor Cyan
 
 # Check prerequisites

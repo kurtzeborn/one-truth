@@ -410,7 +410,8 @@ export function PlayerPage() {
   const hasLateArrivals = state?.hasLateArrivals || false;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center p-4 relative">
+      <p className="text-sm text-gray-600 font-light mt-2 mb-auto">Truth Finder</p>
       {/* Rules button */}
       {state && state.game.status !== 'lobby' && (
         <button
@@ -422,6 +423,7 @@ export function PlayerPage() {
         </button>
       )}
       {showRules && <RulesModal hasLateArrivals={hasLateArrivals} onClose={() => setShowRules(false)} />}
+      <div className="flex-1 flex items-center justify-center w-full">
       {!state ? (
         <p className="text-gray-400">Loading...</p>
       ) : (
@@ -437,6 +439,7 @@ export function PlayerPage() {
           }
         })()
       )}
+      </div>
     </div>
   );
 }

@@ -522,6 +522,7 @@ export function GameControlPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
+            <p className="text-sm text-gray-500">Truth Finder</p>
             <a href="/manage" className="text-blue-400 hover:underline text-sm">← Dashboard</a>
             <h1 className="text-2xl font-bold mt-1">Game {game.id}</h1>
           </div>

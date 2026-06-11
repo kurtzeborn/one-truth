@@ -1,12 +1,12 @@
 #!/bin/bash
-# Start the local development environment for Spot the Lie
+# Start the local development environment for Truth Finder
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo ""
-echo "🎯 Spot the Lie - Local Development Setup"
+echo "🎯 Truth Finder - Local Development Setup"
 echo "========================================"
 echo ""
 

@@ -1,4 +1,4 @@
-# Spot the Lie
+# Truth Finder
 
 A multiplayer party game based on "2 Truths and 1 Lie." A game keeper projects a QR code, players join on their phones, get randomly assigned to groups, write statements, and vote on each other's lies.
 

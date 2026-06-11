@@ -52,7 +52,10 @@ export function GameKeepersPage() {
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Game Keepers</h1>
+          <div>
+            <p className="text-sm text-gray-500">Truth Finder</p>
+            <h1 className="text-3xl font-bold">Game Keepers</h1>
+          </div>
           <a href="/manage" className="text-blue-400 hover:underline text-sm">← Dashboard</a>
         </div>
 

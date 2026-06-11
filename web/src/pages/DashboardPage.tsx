@@ -78,7 +78,10 @@ export function DashboardPage() {
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Game Keeper</h1>
+          <div>
+            <p className="text-sm text-gray-500">Truth Finder</p>
+            <h1 className="text-3xl font-bold">Game Keeper</h1>
+          </div>
           <div className="space-x-4 text-sm">
             <a href="/manage/keepers" className="text-blue-400 hover:underline">Manage Keepers</a>
             <a href="/.auth/logout" className="text-gray-400 hover:underline">Sign Out</a>

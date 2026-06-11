@@ -1,4 +1,4 @@
-# Spot the Lie – Development Plan
+# Truth Finder – Development Plan
 
 **Production URL**: https://truth.k61.dev
 **Repository**: https://github.com/kurtzeborn/one-truth
