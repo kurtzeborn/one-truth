@@ -79,7 +79,7 @@ export function Leaderboard({ scores, compact }: { scores: ScoreEntry[]; compact
         <p className="text-gray-500 animate-pulse text-center">Preparing leaderboard...</p>
       )}
       {displayList.map((entry, displayIdx) => {
-        const rank = displayIdx + 1;
+        const rank = total - revealedCount + displayIdx + 1;
         const isChampion = rank === 1 && animationDone;
         const isTop3 = rank <= 3 && (animationDone || total - revealedCount < 3);
         const isNew = displayIdx === 0; // newest reveal is always at top

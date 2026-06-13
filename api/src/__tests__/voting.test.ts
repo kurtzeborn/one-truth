@@ -5,7 +5,7 @@ import { AuthError } from '../shared/auth.js';
 
 vi.mock('../shared/storage.js', () => ({
   gamesTable: { getEntity: vi.fn(), updateEntity: vi.fn() },
-  playersTable: { getEntity: vi.fn(), updateEntity: vi.fn() },
+  playersTable: { getEntity: vi.fn(), updateEntity: vi.fn(), listEntities: vi.fn() },
   votesTable: {
     getEntity: vi.fn(),
     createEntity: vi.fn(),
@@ -49,6 +49,7 @@ const mockGetGroupVotes = vi.mocked(getGroupVotes);
 const mockGamesUpdate = vi.mocked(gamesTable.updateEntity);
 const mockPlayersGet = vi.mocked(playersTable.getEntity);
 const mockPlayersUpdate = vi.mocked(playersTable.updateEntity);
+const mockPlayersList = vi.mocked(playersTable.listEntities);
 const mockVotesGet = vi.mocked(votesTable.getEntity);
 const mockVotesCreate = vi.mocked(votesTable.createEntity);
 const mockVotesUpdate = vi.mocked(votesTable.updateEntity);
@@ -70,6 +71,10 @@ vi.mock('@azure/functions', async (importOriginal) => {
 });
 
 await import('../functions/voting.js');
+
+function mockAsyncIterable<T>(items: T[]) {
+  return { [Symbol.asyncIterator]: async function* () { yield* items; } };
+}
 
 function makeRequest(params: Record<string, string>, body?: unknown, query?: Record<string, string>): HttpRequest {
   return {
@@ -220,9 +225,11 @@ describe('closeVoting', () => {
       { rowKey: 'p3_A', playerId: 'p3', groupLetter: 'A', chosenStatement: 1, votedAt: new Date('2026-01-01T00:00:00Z') },
     ] as any);
 
-    mockPlayersGet
-      .mockResolvedValueOnce({ rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0 } as any)
-      .mockResolvedValueOnce({ rowKey: 'p2', displayName: 'Bob', score: 0, speedBonuses: 0 } as any);
+    mockPlayersList.mockReturnValue(mockAsyncIterable([
+      { rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0 },
+      { rowKey: 'p2', displayName: 'Bob', score: 0, speedBonuses: 0 },
+      { rowKey: 'p3', displayName: 'Charlie', score: 0, speedBonuses: 0 },
+    ]) as any);
 
     const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'A' }), mockContext);
     expect(res.status).toBe(200);
@@ -291,6 +298,10 @@ describe('closeVoting', () => {
       { rowKey: 'p1_A', playerId: 'p1', groupLetter: 'A', chosenStatement: 1, votedAt: new Date('2026-01-01T00:00:01Z') },
     ] as any);
 
+    mockPlayersList.mockReturnValue(mockAsyncIterable([
+      { rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0 },
+    ]) as any);
+
     const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'A' }), mockContext);
     expect(res.status).toBe(200);
     expect(res.jsonBody.correctVotes).toBe(0);
@@ -312,9 +323,10 @@ describe('closeVoting', () => {
       { rowKey: 'p2_A', playerId: 'p2', groupLetter: 'A', chosenStatement: 2, votedAt: new Date('2026-01-01T00:00:05Z') },
     ] as any);
 
-    mockPlayersGet
-      .mockResolvedValueOnce({ rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0 } as any) // regular player
-      .mockResolvedValueOnce({ rowKey: 'p2', displayName: 'Bob', score: 0, speedBonuses: 0, lateArrival: true } as any); // late arrival
+    mockPlayersList.mockReturnValue(mockAsyncIterable([
+      { rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0 },
+      { rowKey: 'p2', displayName: 'Bob', score: 0, speedBonuses: 0, lateArrival: true },
+    ]) as any);
 
     const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'A' }), mockContext);
     expect(res.status).toBe(200);
@@ -347,7 +359,9 @@ describe('closeVoting', () => {
       { rowKey: 'p1_A', playerId: 'p1', groupLetter: 'A', chosenStatement: 2, votedAt: new Date('2026-01-01T00:00:01Z') },
     ] as any);
 
-    mockPlayersGet.mockResolvedValueOnce({ rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0, lateArrival: true } as any);
+    mockPlayersList.mockReturnValue(mockAsyncIterable([
+      { rowKey: 'p1', displayName: 'Alice', score: 0, speedBonuses: 0, lateArrival: true },
+    ]) as any);
 
     const res = await handler()(makeRequest({ gameId: 'ABCD', letter: 'A' }), mockContext);
     expect(res.status).toBe(200);

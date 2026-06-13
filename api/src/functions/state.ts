@@ -59,6 +59,9 @@ app.http('getGameState', {
 
       const result: Record<string, unknown> = { game: gameData, player: playerData || null };
 
+      // Track late arrivals from player data loaded during phase-specific queries
+      let hasLateArrivals = player?.lateArrival || false;
+
       // Phase-specific data
       switch (game.status) {
         case 'lobby': {
@@ -68,6 +71,7 @@ app.http('getGameState', {
           });
           for await (const p of entities) {
             allPlayers.push({ id: p.rowKey, displayName: p.displayName });
+            if (p.lateArrival) hasLateArrivals = true;
           }
           result.players = allPlayers;
           break;
@@ -85,6 +89,7 @@ app.http('getGameState', {
               if (p.groupLetter === player.groupLetter) {
                 members.push({ id: p.rowKey, displayName: p.displayName });
               }
+              if (p.lateArrival) hasLateArrivals = true;
             }
             result.groupMembers = members;
           }
@@ -147,6 +152,7 @@ app.http('getGameState', {
           });
           for await (const p of entities) {
             scores.push({ id: p.rowKey, displayName: p.displayName, score: p.score, speedBonuses: p.speedBonuses || 0, lateArrival: p.lateArrival || false });
+            if (p.lateArrival) hasLateArrivals = true;
           }
           scores.sort((a, b) => a.score - b.score); // ascending for bottom-up reveal
           result.scores = scores;
@@ -154,15 +160,8 @@ app.http('getGameState', {
         }
       }
 
-      // Check if any late arrivals exist (for rules display)
+      // Set hasLateArrivals from data already loaded above
       if (game.status !== 'lobby') {
-        let hasLateArrivals = false;
-        const allPlayerEntities = playersTable.listEntities<PlayerEntity>({
-          queryOptions: { filter: `PartitionKey eq '${gameId}'`, select: ['lateArrival'] },
-        });
-        for await (const p of allPlayerEntities) {
-          if (p.lateArrival) { hasLateArrivals = true; break; }
-        }
         result.hasLateArrivals = hasLateArrivals;
       }
 

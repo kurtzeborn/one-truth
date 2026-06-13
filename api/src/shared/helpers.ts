@@ -61,14 +61,15 @@ export async function getGroupStatements(gameId: string, groupLetter: string): P
 
 /**
  * Get all votes for a specific group letter in a game.
+ * Uses server-side filter on groupLetter to avoid scanning all votes.
  */
 export async function getGroupVotes(gameId: string, groupLetter: string): Promise<VoteEntity[]> {
   const votes: VoteEntity[] = [];
   const entities = votesTable.listEntities<VoteEntity>({
-    queryOptions: { filter: `PartitionKey eq '${gameId}'` },
+    queryOptions: { filter: `PartitionKey eq '${gameId}' and groupLetter eq '${groupLetter}'` },
   });
   for await (const v of entities) {
-    if (v.groupLetter === groupLetter) votes.push(v);
+    votes.push(v);
   }
   return votes;
 }

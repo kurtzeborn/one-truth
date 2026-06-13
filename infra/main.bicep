@@ -53,14 +53,14 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
   }
 }
 
-// Static Web App (Free tier — uses built-in AAD auth, no custom provider config needed)
+// Static Web App (Standard tier — reduces cold start latency, adds SLA)
 module staticSite 'br/public:avm/res/web/static-site:0.7.0' = {
   name: 'staticSiteDeployment'
   params: {
     name: staticSiteName
     location: swaLocation
     tags: tags
-    sku: 'Free'
+    sku: 'Standard'
     customDomains: customDomain != '' ? [customDomain] : []
   }
 }

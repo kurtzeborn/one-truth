@@ -90,6 +90,15 @@ app.http('closeVoting', {
       // Get all votes for this group
       const votes = await getGroupVotes(gameId, letter);
 
+      // Pre-load all players into a Map to avoid N+1 queries
+      const playerMap = new Map<string, PlayerEntity>();
+      const playerEntities = playersTable.listEntities<PlayerEntity>({
+        queryOptions: { filter: `PartitionKey eq '${gameId}'` },
+      });
+      for await (const p of playerEntities) {
+        playerMap.set(p.rowKey, p);
+      }
+
       // Score each vote and update player scores
       // First pass: find the fastest correct vote
       let fastestCorrectVote: VoteEntity | null = null;
@@ -108,13 +117,7 @@ app.http('closeVoting', {
         const isCorrect = vote.chosenStatement === lieStatementNumber;
         const isFastest = isCorrect && fastestCorrectVote !== null && vote.rowKey === fastestCorrectVote.rowKey;
 
-        // Look up player to check late arrival status
-        let player: PlayerEntity | null = null;
-        try {
-          player = await playersTable.getEntity<PlayerEntity>(gameId, vote.playerId);
-        } catch (error: any) {
-          if (error.statusCode !== 404) throw error;
-        }
+        const player = playerMap.get(vote.playerId) || null;
 
         const basePoints = player?.lateArrival ? 2 : 3;
         const pointsAwarded = isCorrect ? (isFastest ? basePoints + 2 : basePoints) : 0;
